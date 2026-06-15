@@ -1,0 +1,5 @@
+customtkinter
+python-dotenv
+openai
+sentence-transformers
+torch
