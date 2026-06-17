@@ -10,7 +10,10 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import hashlib
 import pickle
-
+import pandas as pd
+import pdfplumber
+from docx import Document
+from pptx import Presentation
 # =====================================================================
 # PREMIUM THEME CONFIGURATION (Silicon Valley Corporate Aesthetic)
 # =====================================================================
@@ -108,8 +111,32 @@ def bg_model_loading(ui_instance):
 
     model_loaded = True
     ui_instance.after(0, ui_instance.transition_to_main_ui)
-
-
+# PDF TEXT EXTRACTION ------------------------------------------>
+def pdf_loader(file_path):
+    text = ""
+    with pdfplumber.open(file_path) as pdf:
+        pages = pdf.pages
+        for page in pages:
+            text += page.extract_text() or ""
+    return text.strip()
+# DOCX FILE TEXT EXTRACTION -------------------------------->
+def docx_loader(filepath):
+    text =""
+    doc  = Document(filepath)
+    for paragraphs in doc.paragraphs:
+        text += paragraphs.text or ""
+    return text.strip()
+# PRESENTATION FILE TEXT EXTRACTION -------------------------------->
+def presentation_loader(file_path):
+    text = ""
+    prs = Presentation(file_path)
+    for slides in prs.slides:
+        for shapes in slides.shapes:
+            if shapes.has_text_frame:
+                for paragraph in shapes.text_frame.paragraphs:
+                    text += paragraph.text or ''
+    return text.strip()
+# LOADING NOTES FOLDER ------------------->        
 def load_folder():
     if SETTINGS_FILE.exists():
         with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
@@ -134,7 +161,10 @@ def load_notes_from_path(folder_path):
     """Helper method to completely re-index target files into memory."""
     ALLOWED_EXTENSIONS = {
         ".txt",
-        ".md"
+        ".md",
+        '.pdf',
+        '.docx',
+        '.pptx'
     }
     global Notes
     Notes.clear()
@@ -144,33 +174,40 @@ def load_notes_from_path(folder_path):
     if EMBEDDINGS_CACHE_FILE.exists():
         with open(EMBEDDINGS_CACHE_FILE,'rb') as f:
             disk_cache = pickle.load(f)
+    notes_changed = False
     for files in os.listdir(folder_path):
-        notes_changed = False
         path = os.path.join(
             folder_path,
             files
         )
-
+        
         if (Path(path).suffix.lower() not in ALLOWED_EXTENSIONS):
             continue
         if os.path.isfile(path):
             try:
-                with open(path, "r", encoding="utf-8") as f:
-                    content = f.read()
+                if Path(path).suffix.lower() == ".pdf":
+                    content = pdf_loader(path)
+                elif Path(path).suffix.lower() == ".docx":
+                    content = docx_loader(path)
+                elif Path(path).suffix.lower() == ".pptx":
+                    content = presentation_loader(path)
+                else:    
+                    with open(path, "r", encoding="utf-8") as f:
+                        content = f.read()
                 Notes[files] = content
                 file_hash = get_hash(path)
                 if files in disk_cache and disk_cache[files][0] == file_hash:
                     Embedding_cache[files] = disk_cache[files][1]
                 else:
                     Embedding_cache[files] = model.encode(content,convert_to_tensor=True)
-                    disk_cache[files] = (file_hash,Embedding_cache)
+                    disk_cache[files] = (file_hash,Embedding_cache[files])
                     notes_changed = True  
             except Exception as e:
                 print(f"Skipping unreadable asset {files}: {e}")
-        disk_cache = {k:v for k,v in disk_cache.items() if k in Notes}
-        if notes_changed:
-            with open(EMBEDDINGS_CACHE_FILE,'wb') as f:
-                pickle.dump(disk_cache,f)
+    disk_cache = {k:v for k,v in disk_cache.items() if k in Notes}
+    if notes_changed:
+        with open(EMBEDDINGS_CACHE_FILE,'wb') as f:
+            pickle.dump(disk_cache,f)
 
 current_notes_path = load_folder()
 if current_notes_path:
