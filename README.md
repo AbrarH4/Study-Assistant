@@ -10,23 +10,30 @@ Built for students, self-learners, researchers, and anyone who maintains large c
 
 ## Preview
 
-### Main Interface
-![Main Interface](SCREENSHOTS/MAIN_UI.png)
-
-### Asking a Question
-![Question Example](SCREENSHOTS/BIOLOGY_QUESTION.png)
-
-### Generated Answer
-![Generated Answer](SCREENSHOTS/ANSWER.png)
-
-### Generated Answer 2
-![Generated Answer 2](SCREENSHOTS/ANSWER(2).png)
-
 ### Loading Screen
 ![Loading Screen](SCREENSHOTS/LOADING_SCREEN.png)
 
+# --------------------------------------------------------------------------------------------------
+### Main Interface
+![Main Interface](SCREENSHOTS/MAIN_UI.png)
+# --------------------------------------------------------------------------------------------------
+
 ### Actual Notes
 ![Actual Notes](SCREENSHOTS/BIOLOGY.png)
+# --------------------------------------------------------------------------------------------------
+
+### Asking a Question
+![Question Example](SCREENSHOTS/BIOLOGY_QUESTION.png)
+# --------------------------------------------------------------------------------------------------
+
+### Generated Answer
+![Generated Answer](SCREENSHOTS/ANSWER.png)
+# --------------------------------------------------------------------------------------------------
+
+### Generated Answer 2
+![Generated Answer 2](SCREENSHOTS/ANSWERS.png)
+# --------------------------------------------------------------------------------------------------
+
 
 ---
 
