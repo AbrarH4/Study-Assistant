@@ -145,8 +145,24 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
+## Quick Start — Two Ways to Run This
 
+**Option A — No account needed (Ollama, fully offline)**
+Skip API keys entirely. Install Ollama, pull a model, and you're done — see the Ollama Setup section below. No signup, no internet required after setup.
+
+**Option B — Cloud providers (faster, optional)**
+If you'd rather use a cloud AI provider, get a free API key from one of:
+- [Google AI Studio](https://aistudio.google.com/apikey) — free Gemini key
+- [Groq](https://console.groq.com/keys) — free, generous rate limits
+- [OpenRouter](https://openrouter.ai/keys) — free tier models available
+
+Takes about 2 minutes. Paste it into your `.env` file and you're set.
+
+You only need ONE of the two options above — not both.
+
+
+### 4. Configure Environment Variables
+> Skip this step entirely if you're using Ollama (Option A above).
 Create a `.env` file using `.env.example`.
 
 Example:
