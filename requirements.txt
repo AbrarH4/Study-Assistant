@@ -1,5 +1,7 @@
 customtkinter
 python-dotenv
-openai
 sentence-transformers
-torch
+openai
+pdfplumber
+python-docx
+python-pptx
