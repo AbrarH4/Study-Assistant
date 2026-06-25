@@ -1,3 +1,4 @@
+import sys
 from dotenv import load_dotenv
 from pathlib import Path
 import os
@@ -46,12 +47,22 @@ TEXT_INTERACTIVE = "#F2F0E8"  # Saffron Yellow Accent Highlight
 # =====================================================================
 # LOGIC ENGINE
 # =====================================================================
-BASE_DIR = Path(__file__).parent
 
-SETTINGS_FILE = BASE_DIR / "settings.json"
-STOP_WORDS_FILE = BASE_DIR / "STOP_WORDS.json"
+
+def get_resource_path(filename):
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS) / filename
+
+    return Path(__file__).parent / filename
+
+
+APP_DIR = Path(os.getenv("APPDATA")) / "Ace"
+APP_DIR.mkdir(parents=True, exist_ok=True)
+
+SETTINGS_FILE = APP_DIR / "settings.json"
+STOP_WORDS_FILE = get_resource_path("STOP_WORDS.json")
 
 APP_VERSION = "1.0.0"
-EMBEDDINGS_CACHE_FILE = BASE_DIR / "embeddings_cache.pkl"
+EMBEDDINGS_CACHE_FILE = APP_DIR / "embeddings_cache.pkl"
 
 ALLOWED_EXTENSIONS = {".txt", ".md", ".pdf", ".docx", ".pptx"}

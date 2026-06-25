@@ -17,3 +17,5 @@ venv/
 build/
 dist/
 *.spec
+
+*.zip

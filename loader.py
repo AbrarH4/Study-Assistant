@@ -64,24 +64,19 @@ def load_notes_from_path(folder_path):
             pickle.dump(disk_cache, f)
 
 
-def check_if_path_exists():
-    with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-        settings = json.load(f)
-        if "path_notes" in settings and settings["path_notes"]:
-            if os.path.exists(settings["path_notes"]):
-                return settings["path_notes"]
-
-
-def load_folder():
+def load_folder_path():
     if SETTINGS_FILE.exists():
-        existing = check_if_path_exists()
-        if existing:
-            return existing
+        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+        path_notes = settings.get("path_notes", None)
+        if path_notes and os.path.exists(path_notes):
+            return path_notes
     path_notes = filedialog.askdirectory(title="CHOOSE YOUR NOTES FOLDER.")
     if path_notes:
         with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump({"path_notes": path_notes}, f, indent=4)
-    return path_notes
+        return path_notes
+    return None
 
 
 def bg_model_loading(ui_instance):
@@ -95,8 +90,8 @@ def bg_model_loading(ui_instance):
     from sentence_transformers import SentenceTransformer
 
     model = SentenceTransformer("all-MiniLM-L6-v2")
-    if load_folder():
-        load_notes_from_path(load_folder())
+    if load_folder_path():
+        load_notes_from_path(load_folder_path())
 
     model_loaded = True
     ui_instance.after(0, ui_instance.transition_to_main_ui)
