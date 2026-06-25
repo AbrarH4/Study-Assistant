@@ -8,6 +8,7 @@ from tkinter import filedialog, messagebox
 from loader import load_folder_path, load_notes_from_path, Notes, bg_model_loading
 import json
 
+# UI for main.py
 # ── Own modules ────────────────────────────────────────
 from config import (
     APP_VERSION,

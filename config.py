@@ -66,3 +66,4 @@ APP_VERSION = "1.0.0"
 EMBEDDINGS_CACHE_FILE = APP_DIR / "embeddings_cache.pkl"
 
 ALLOWED_EXTENSIONS = {".txt", ".md", ".pdf", ".docx", ".pptx"}
+# config

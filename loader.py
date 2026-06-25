@@ -4,7 +4,7 @@ import json
 import hashlib
 import pickle
 from pathlib import Path
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
 import pdfplumber
 from docx import Document
 from pptx import Presentation
