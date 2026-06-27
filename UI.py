@@ -1,3 +1,18 @@
+"""Main application window and all UI logic for Ace.
+
+This module contains:
+
+- AnswerSystem() — assembles retrieved note chunks into an LLM prompt
+  and returns the generated answer.
+- ACEUI — the single CTk root window that manages the splash screen,
+  the main chat interface, the quiz flow, and all supporting dialogs.
+
+Threading model:
+    Heavy operations (model loading, re-indexing, LLM calls) run in daemon
+    threads. All widget mutations from those threads are dispatched to the
+    main thread via self.after(0, callback) to comply with tkinter's
+    single-thread restriction.
+"""
 import re
 import customtkinter as ctk
 import sys
@@ -41,6 +56,22 @@ ctk.set_default_color_theme("blue")
 
 
 def AnswerSystem(winning_file_names, encoded_question, original_question):
+    """Retrieve relevant chunks from each winning note and call the LLM.
+
+    For every note in winning_file_names, the top semantically relevant
+    paragraphs are extracted and concatenated with a SOURCE: <filename> header.
+    The assembled context is then passed to GenerateAnswer().
+
+    Args:
+        winning_file_names: Ordered list of note filenames from the ranker.
+        encoded_question: Pre-computed sentence-transformer tensor for the
+            user's question, used to score paragraph relevance.
+        original_question: The raw question string forwarded to the LLM.
+
+    Returns:
+        The LLM's answer string, or raw context if the LLM call fails,
+        or an error message string if an exception occurs.
+    """
     try:
         all_context = ""
         for filename in winning_file_names:
@@ -63,6 +94,24 @@ def AnswerSystem(winning_file_names, encoded_question, original_question):
 
 
 class ACEUI(ctk.CTk):
+    """Root application window.
+
+    Manages two top-level states:
+
+    1. Splash / loading — shown while bg_model_loading runs in a background
+       thread. Displays a progress bar and status text.
+    2. Main UI — shown after the model and notes are ready. Contains the
+       search entry, chat history panel, and toolbar buttons.
+
+    The quiz flow replaces the main canvas temporarily with a quiz canvas,
+    then restores the main canvas when the user exits.
+
+    Attributes:
+        _quiz_data (list): Current quiz question list from the LLM.
+        _quiz_index (int): Index of the question currently displayed.
+        _quiz_score (int): Number of correct answers in the current session.
+        _quiz_answered (bool): Whether the current question has been answered.
+    """
     def __init__(self):
         super().__init__()
         self.title("ACE")
@@ -393,6 +442,7 @@ class ACEUI(ctk.CTk):
 
         # Wire copy button to this specific answer box
         def do_copy():
+            """Copy the answer card's plain text to the system clipboard."""
             content = answer_box._textbox.get("1.0", ctk.END).strip()
             if not content:
                 return
@@ -510,6 +560,7 @@ class ACEUI(ctk.CTk):
         type_menu.pack(fill="x", padx=32, pady=(4, 24))
 
         def start_quiz():
+            """Collect dialog values, close dialog, and launch the quiz."""
             topic = topic_entry.get().strip()
             count = int(count_var.get())
             qtype = type_var.get()
@@ -533,6 +584,7 @@ class ACEUI(ctk.CTk):
         self.quiz_btn.configure(state="disabled", text="Generating…")
 
         def worker():
+            """Fetch context and call the LLM quiz generator off the main thread."""
             context = get_quiz_context(topic)
             if not context:
                 self.after(
@@ -978,6 +1030,7 @@ class ACEUI(ctk.CTk):
         type_menu.pack(fill="x", padx=32, pady=(4, 24))
 
         def start_quiz():
+            """Collect dialog values, close dialog, and launch the quiz."""
             topic = topic_entry.get().strip()
             count = int(count_var.get())
             qtype = type_var.get()
@@ -999,6 +1052,14 @@ class ACEUI(ctk.CTk):
     # ── NETWORK ERROR ──────────────────────────────────────────────────
 
     def display_critical_network_error(self, message):
+        """Replace the splash progress bar with an offline error state.
+
+        If Ollama is installed but not running, shows instructions to start it.
+        If Ollama is not installed, shows a download button.
+
+        Args:
+            message: Error detail string available for logging.
+        """
         self.progress_bar.stop()
         self.progress_bar.configure(progress_color="#EF4444")
         self.loading_app_name.configure(text_color="#EF4444")
@@ -1038,9 +1099,22 @@ class ACEUI(ctk.CTk):
             self.ollama_size_label.grid(row=7, column=0, pady=(0, 0))
 
     def update_loading_status(self, text_status):
+        """Update the splash screen status label text.
+
+        Called from the background loading thread via self.after(0, ...) so
+        the update happens on the main thread.
+
+        Args:
+            text_status: The new status string to display.
+        """
         self.loading_text.configure(text=text_status)
 
     def transition_to_main_ui(self):
+        """Hide the splash screen and reveal the main chat UI.
+
+        Called on the main thread via self.after(0, ...) once
+        bg_model_loading has finished.
+        """
         self.progress_bar.stop()
         self.loading_frame.grid_forget()
         self.main_canvas.grid(row=0, column=0, padx=40, pady=30, sticky="nsew")
@@ -1048,6 +1122,11 @@ class ACEUI(ctk.CTk):
     # ── PATH CHANGE ────────────────────────────────────────────────────
 
     def ui_change_path_flow(self):
+        """Open a folder picker and re-index notes from the new path.
+
+        Saves the chosen path to SETTINGS_FILE, disables controls during
+        re-indexing, then restores them via finish_reindex() on the main thread.
+        """
         path_notes = filedialog.askdirectory(title="CHOOSE YOUR NEW NOTES FOLDER.")
         if not path_notes:
             return
@@ -1062,12 +1141,21 @@ class ACEUI(ctk.CTk):
         self.search_btn.configure(state="disabled")
 
         def reindex_worker():
+            """Re-encode all notes in the new folder off the main thread."""
             load_notes_from_path(path_notes)
             self.after(0, lambda: self.finish_reindex(path_notes))
 
         threading.Thread(target=reindex_worker, daemon=True).start()
 
     def finish_reindex(self, path_notes):
+        """Restore UI state after re-indexing completes.
+
+        Clears conversation history, removes all chat widgets, updates the
+        directory sub-header, and shows a confirmation system message.
+
+        Args:
+            path_notes: The newly indexed folder path.
+        """
         chat_history.clear()
         # Clear all chat widgets
         for widget in self.chat_frame.winfo_children():
@@ -1082,6 +1170,13 @@ class ACEUI(ctk.CTk):
     # ── SEARCH FLOW ────────────────────────────────────────────────────
 
     def ui_trigger_search_flow(self):
+        """Handle a user search: add bubbles, animate, and run the pipeline.
+
+        Entry point for the Analyze button and Enter key. Clears the search
+        entry, adds a user bubble and an empty answer card, starts a spinner
+        animation, and dispatches the ranking + LLM pipeline to a background
+        thread.
+        """
         if not model_loaded:
             return
         query_text = self.search_entry.get()
@@ -1108,6 +1203,7 @@ class ACEUI(ctk.CTk):
         is_loading = True
 
         def animate_terminal_loading(tick=0):
+            """Cycle through Braille spinner frames until the pipeline completes."""
             if not is_loading:
                 return
             frames = ["⠋", "⠙", "⠸", "⠴", "⠦", "⠇"]
@@ -1121,6 +1217,7 @@ class ACEUI(ctk.CTk):
         animate_terminal_loading()
 
         def async_search_pipeline():
+            """Run keyword extraction, ranking, and LLM call in a background thread."""
             nonlocal is_loading
             global input
             old_input = input
@@ -1165,6 +1262,15 @@ class ACEUI(ctk.CTk):
         threading.Thread(target=async_search_pipeline, daemon=True).start()
 
     def render_fallback_msg(self, answer_box, msg):
+        """Write a plain fallback message into an answer card.
+
+        Used when the ranking pipeline finds no matching notes or the LLM
+        pipeline fails entirely.
+
+        Args:
+            answer_box: The CTkTextbox card to write into.
+            msg: The message to display.
+        """
         answer_box.configure(state="normal")
         answer_box._textbox.delete("1.0", ctk.END)
         answer_box._textbox.insert("1.0", msg, "body")
@@ -1177,6 +1283,20 @@ class ACEUI(ctk.CTk):
     # ── TYPEWRITER STREAM ──────────────────────────────────────────────
 
     def execute_typewriter_stream(self, answer_box, target_text_payload, file_sources):
+        """Stream the LLM answer into the card one line at a time.
+
+        Parses the LLM's markdown-like output and applies the appropriate
+        text tag (h1, h2, body, bullet_marker, bullet_text, divider) per line.
+        Each line is scheduled 40ms after the previous via self.after to create
+        a typewriter effect without blocking the UI. A source footer listing
+        contributing filenames is appended after all lines are written.
+
+        Args:
+            answer_box: The CTkTextbox card to stream into.
+            target_text_payload: The raw LLM response string.
+            file_sources: List of filenames or a single filename string
+                indicating which notes contributed to the answer.
+        """
         answer_box.configure(state="normal")
         answer_box._textbox.delete("1.0", ctk.END)
         answer_box.configure(state="disabled")
@@ -1185,12 +1305,14 @@ class ACEUI(ctk.CTk):
         tb = answer_box._textbox
 
         def clean(line):
+            """Strip markdown bold/italic markers the LLM may emit."""
             s = re.sub(r"\*\*(.*?)\*\*", r"\1", line)
             s = re.sub(r"__(.*?)__", s, s)
             s = re.sub(r"\*(.*?)\*", r"\1", s)
             return s
 
         def stream_line_by_line(line_idx=0):
+            """Recursively schedule the next line insert via self.after."""
             if line_idx < len(payload_lines):
                 answer_box.configure(state="normal")
                 raw = payload_lines[line_idx]

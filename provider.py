@@ -1,13 +1,32 @@
+"""LLM provider abstraction: chat history, answer generation, and quiz generation.
+
+All LLM calls use the OpenAI-compatible /v1/chat/completions endpoint so the
+same client works for Ollama (local), Gemini, Groq, and OpenRouter without
+any provider-specific SDKs. Providers are tried in priority order from
+config.PROVIDERS, the first to succeed short-circuits the loop.
+
+Chat context is maintained in a fixed-length deque to give the LLM
+conversational memory without allowing the context window to grow unboundedly.
+"""
+
 # providers.py
 import json
 from collections import deque
 from openai import OpenAI
 from config import PROVIDERS
 
+# Store the last 5 conversation turns (each turn is a (user_msg, assistant_msg)
+# pair). deque with maxlen automatically evicts the oldest turn when full.
 chat_history = deque(maxlen=5)
 
 
 def turn_to_history(question, answer):
+    """Append a completed question-answer pair to the conversation history.
+
+    Args:
+        question: The user's question text.
+        answer: The assistant's answer text.
+    """
     turn = (
         {"role": "user", "content": question},
         {"role": "assistant", "content": answer},
@@ -16,13 +35,39 @@ def turn_to_history(question, answer):
 
 
 def get_messages(system_prompt):
+    """Build a full OpenAI messages list from the system prompt and history.
+
+    Prepends the system prompt then interleaves the stored conversation turns
+    in chronological order. The caller appends the current user message after.
+
+    Args:
+        system_prompt: The instruction string placed in the system role.
+
+    Returns:
+        A list of {"role": ..., "content": ...} dicts ready for the API.
+    """
     messages = [{"role": "system", "content": system_prompt}]
     for turn in chat_history:
-        messages.extend(turn)
+        messages.extend(turn)  # Each turn is a (user_dict, assistant_dict) tuple
     return messages
 
 
 def GenerateAnswer(question, context):
+    """Generate a study-assistant answer grounded in the retrieved note context.
+
+    Providers are tried in order, the first successful response is returned and
+    saved to conversation history. The system prompt prevents hallucination and
+    enforces structured layout (headings, dividers, bullets) for readability.
+
+    Args:
+        question: The user's natural-language question.
+        context: Relevant note excerpts retrieved by the ranking pipeline,
+            formatted as SOURCE: <filename>\\n<chunks>.
+
+    Returns:
+        The assistant's answer string, or a failure message if all providers
+        are exhausted.
+    """
     system_prompt = (
         "You are an intelligent and highly capable study assistant.\n"
         "Your primary source of truth is the provided notebook context.\n\n"
@@ -58,7 +103,9 @@ def GenerateAnswer(question, context):
     user_content = f"QUESTION:\n{question}\n\nNOTEBOOK CONTEXT:\n{context}"
     messages.append({"role": "user", "content": user_content})
 
+    # Try each configured provider in priority order
     for provider in PROVIDERS:
+        # Skip cloud providers that have no API key configured
         if not provider["key"] and provider["name"] != "Ollama (Local)":
             print(f"Skipping {provider['name']}: No API key.")
             continue
@@ -68,7 +115,7 @@ def GenerateAnswer(question, context):
             response = client.chat.completions.create(
                 model=provider["model"],
                 messages=messages,
-                temperature=0.1,
+                temperature=0.1,  # Low temperature for factual, consistent answers
             )
             print(f"[SUCCESS] {provider['name']}")
             turn_to_history(question, response.choices[0].message.content)
@@ -81,6 +128,23 @@ def GenerateAnswer(question, context):
 
 
 def GenerateQuiz(context, quiz_count=5, quiz_type="mixed", difficulty=None, topic=None):
+    """Generate a quiz as a JSON array grounded in the retrieved note context.
+
+    The LLM is instructed to return only a raw JSON array so it can be parsed
+    directly. A two-stage parse is used: first json.loads on the raw response,
+    then a bracket-extraction fallback in case the model adds stray text.
+
+    Args:
+        context: Relevant note excerpts formatted as SOURCE: <filename>\\n<chunks>.
+        quiz_count: Number of questions to generate. Defaults to 5.
+        quiz_type: One of "mixed", "mcq", or "true/false".
+        difficulty: Optional difficulty hint passed to the LLM.
+        topic: Optional topic string to focus the questions.
+
+    Returns:
+        A list of question dicts if parsing succeeds, or None if all providers
+        fail or the response is unparseable.
+    """
     system_prompt = (
         "You are a quiz generator for a study assistant app.\n"
         "Your only job is to generate quiz questions strictly from the provided notebook context.\n\n"
@@ -106,6 +170,8 @@ def GenerateQuiz(context, quiz_count=5, quiz_type="mixed", difficulty=None, topi
         "- Test understanding, not memorization.\n\n"
         "CRITICAL: Output raw JSON only. Any text outside the array breaks the application."
     )
+
+    # Append an optional difficulty modifier to the system prompt
     if difficulty:
         system_prompt += f"\nDifficulty: {difficulty}."
 
@@ -121,6 +187,7 @@ def GenerateQuiz(context, quiz_count=5, quiz_type="mixed", difficulty=None, topi
     messages.append({"role": "user", "content": user_content})
 
     for provider in PROVIDERS:
+        # Skip cloud providers without an API key
         if not provider["key"] and provider["name"] != "Ollama (Local)":
             continue
         try:
@@ -128,12 +195,15 @@ def GenerateQuiz(context, quiz_count=5, quiz_type="mixed", difficulty=None, topi
             response = client.chat.completions.create(
                 model=provider["model"],
                 messages=messages,
-                temperature=0.3,
+                temperature=0.3,  # Slightly higher than answers to add variety
             )
             raw = response.choices[0].message.content
+
+            # Primary parse — works when the model follows instructions perfectly
             try:
                 quiz_data = json.loads(raw.strip())
             except json.JSONDecodeError:
+                # Fallback: extract the JSON array even if the model prepended text
                 start = raw.find("[")
                 end = raw.rfind("]")
                 if start != -1 and end != -1 and end > start:
