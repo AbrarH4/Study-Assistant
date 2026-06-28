@@ -22,7 +22,7 @@ import json
 import hashlib
 import pickle
 from pathlib import Path
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 import pdfplumber
 from docx import Document
 from pptx import Presentation
@@ -35,6 +35,22 @@ Embedding_cache = {}    # Filename → sentence-transformer tensor (in-memory)
 Notes_Cache = {}        # Reserved for future use (currently unused)
 model = None            # SentenceTransformer instance, set in bg_model_loading()
 model_loaded = False    # True once bg_model_loading() finishes
+
+
+def has_supported_files(folder_path):
+    """Check whether a folder contains at least one supported note file.
+
+    Args:
+        folder_path: Absolute path to the folder to check.
+
+    Returns:
+        True if at least one file with a supported extension exists,
+        False otherwise.
+    """
+    for filename in os.listdir(folder_path):
+        if Path(os.path.join(folder_path, filename)).suffix.lower() in ALLOWED_EXTENSIONS:
+            return True
+    return False
 
 
 def load_notes_from_path(folder_path):
@@ -117,7 +133,9 @@ def load_folder_path():
 
     Checks SETTINGS_FILE for a previously saved path. If the saved path still
     exists on disk it is returned immediately. Otherwise an OS folder picker
-    dialog is shown and the selection is persisted for future runs.
+    dialog is shown. If the selected folder contains no supported note files,
+    a warning is displayed and the dialog re-opens until the user picks a
+    valid folder or cancels.
 
     Returns:
         The absolute path to the notes folder as a string, or None if the
@@ -131,13 +149,24 @@ def load_folder_path():
         if path_notes and os.path.exists(path_notes):
             return path_notes
 
-    # No valid saved path — ask the user to choose a folder
-    path_notes = filedialog.askdirectory(title="CHOOSE YOUR NOTES FOLDER.")
-    if path_notes:
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump({"path_notes": path_notes}, f, indent=4)
-        return path_notes
-    return None
+    # Loop until the user picks a folder with supported files or cancels
+    while True:
+        path_notes = filedialog.askdirectory(title="CHOOSE YOUR NOTES FOLDER.")
+        if not path_notes:
+            return None
+
+        if has_supported_files(path_notes):
+            with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+                json.dump({"path_notes": path_notes}, f, indent=4)
+            return path_notes
+
+        # Folder is empty or contains only unsupported file types
+        messagebox.showwarning(
+            "Empty Folder",
+            "The selected folder contains no supported note files.\n\n"
+            "Supported formats: .txt  .md  .pdf  .docx  .pptx\n\n"
+            "Please select another folder."
+        )
 
 
 def bg_model_loading(ui_instance):

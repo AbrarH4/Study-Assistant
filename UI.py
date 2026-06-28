@@ -20,7 +20,7 @@ import threading
 import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox
-from loader import load_folder_path, load_notes_from_path, Notes, bg_model_loading
+from loader import load_folder_path, load_notes_from_path, Notes, bg_model_loading, has_supported_files
 import json
 
 # UI for main.py
@@ -1124,15 +1124,30 @@ class ACEUI(ctk.CTk):
     def ui_change_path_flow(self):
         """Open a folder picker and re-index notes from the new path.
 
-        Saves the chosen path to SETTINGS_FILE, disables controls during
-        re-indexing, then restores them via finish_reindex() on the main thread.
+        Re-prompts the user if the selected folder contains no supported note
+        files, showing a warning each time. Saves the chosen path to
+        SETTINGS_FILE, disables controls during re-indexing, then restores
+        them via finish_reindex() on the main thread.
         """
-        path_notes = filedialog.askdirectory(title="CHOOSE YOUR NEW NOTES FOLDER.")
-        if not path_notes:
-            return
         if not model_loaded:
             messagebox.showerror("ERROR", "Model is still loading, please wait.")
             return
+
+        # Loop until a folder with supported files is chosen or user cancels
+        while True:
+            path_notes = filedialog.askdirectory(title="CHOOSE YOUR NEW NOTES FOLDER.")
+            if not path_notes:
+                return
+
+            if has_supported_files(path_notes):
+                break
+
+            messagebox.showwarning(
+                "Empty Folder",
+                "The selected folder contains no supported note files.\n\n"
+                "Supported formats: .txt  .md  .pdf  .docx  .pptx\n\n"
+                "Please select another folder."
+            )
 
         with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump({"path_notes": path_notes}, f, indent=4)
