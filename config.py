@@ -39,16 +39,16 @@ PROVIDERS = [
 ]
 
 # UI colour palette
-BG_MAIN = "#0D0E12"        # Deep obsidian base, root window background
-BG_CARD = "#161920"        # Slightly elevated slate for card / panel surfaces
-BORDER_COLOR = "#262930"   # Subtle border that separates cards
-ACCENT_COLOR = "#4F46E5"   # Primary indigo, CTAs and progress indicators
-ACCENT_HOVER = "#4338CA"   # Darker indigo for button hover state
+BG_MAIN = "#0D0E12"  # Deep obsidian base, root window background
+BG_CARD = "#161920"  # Slightly elevated slate for card / panel surfaces
+BORDER_COLOR = "#262930"  # Subtle border that separates cards
+ACCENT_COLOR = "#4F46E5"  # Primary indigo, CTAs and progress indicators
+ACCENT_HOVER = "#4338CA"  # Darker indigo for button hover state
 
-TEXT_PRIMARY = "#E2E8F0"       # High-contrast white-slate for headings and labels
-TEXT_SECONDARY = "#94A3B8"     # Muted slate gray for body copy
-TEXT_DISABLED = "#475569"      # Receding gray for placeholders and hints
-TEXT_INTERACTIVE = "#F2F0E8"   # Warm off-white for interactive accent highlights
+TEXT_PRIMARY = "#E2E8F0"  # High-contrast white-slate for headings and labels
+TEXT_SECONDARY = "#94A3B8"  # Muted slate gray for body copy
+TEXT_DISABLED = "#475569"  # Receding gray for placeholders and hints
+TEXT_INTERACTIVE = "#F2F0E8"  # Warm off-white for interactive accent highlights
 
 
 def get_resource_path(filename):
@@ -70,7 +70,7 @@ def get_resource_path(filename):
 
 # Persistent application directory in the user's APPDATA folder
 APP_DIR = Path(os.getenv("APPDATA")) / "Ace"
-APP_DIR.mkdir(parents=True, exist_ok=True)   # Create on first run if absent
+APP_DIR.mkdir(parents=True, exist_ok=True)  # Create on first run if absent
 
 # JSON file that stores user preferences (e.g. notes folder path)
 SETTINGS_FILE = APP_DIR / "settings.json"
@@ -78,7 +78,7 @@ SETTINGS_FILE = APP_DIR / "settings.json"
 # JSON list of common English stop words used during keyword extraction
 STOP_WORDS_FILE = get_resource_path("STOP_WORDS.json")
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.2.0"
 
 # Cached sentence-transformer embeddings persisted between sessions to avoid
 # re-encoding unchanged files on every launch

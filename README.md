@@ -10,23 +10,20 @@ Built for students, self-learners, researchers, and anyone who maintains large c
 
 ## Preview
 
-### Loading Screen
-![Loading Screen](SCREENSHOTS/LOADING_SCREEN.png)
-
 ### Main Interface
 ![Main Interface](SCREENSHOTS/MAIN_UI.png)
-
-### Actual Notes
-![Actual Notes](SCREENSHOTS/BIOLOGY.png)
-
-### Asking a Question
-### WHAT IS AN ECOSYSTEM?
-
-### Generated Answer
-![Generated Answer](SCREENSHOTS/ANSWER.png)
-
-### Generated Answer 2
-![Generated Answer 2](SCREENSHOTS/ANSWERS.png)
+---
+### Question
+![Question](SCREENSHOTS/QUESTION.png)
+----
+### ANSWER
+![ANSWER](SCREENSHOTS/ANSWER.png)
+---
+### QUIZ
+![QUIZ](SCREENSHOTS/QUIZ.png)
+---
+### RESULTS
+![RESULTS](SCREENSHOTS/RESULTS.png)
 
 ---
 
@@ -48,7 +45,8 @@ Built for students, self-learners, researchers, and anyone who maintains large c
   - Groq
   - OpenRouter
 - Offline mode via Ollama — works without internet
-
+- Now has an exe file support for users who dont want the setup hassle.
+- The Quiz mode is now available. You can test yourself on your notes. 
 ---
 
 ## Online vs Offline
@@ -117,8 +115,8 @@ CNN vs RNN.txt
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Study-Assistant.git
-cd Study-Assistant
+git clone https://github.com/YOUR_USERNAME/Ace.git
+cd Ace
 ```
 
 ### 2. Create a Virtual Environment
@@ -278,11 +276,7 @@ Instead of manually opening dozens of files, users can ask questions and receive
 - Multi-provider cloud AI fallback
 - Offline mode via Ollama
 
-### Version 1.1
-- Copy answer button
-- Quiz mode
-- Export answers
-- Note statistics and analytics
+
 
 ### Future
 - Cross-platform packaging
@@ -293,7 +287,6 @@ Instead of manually opening dozens of files, users can ask questions and receive
 ## Contributing
 
 Contributions, suggestions, bug reports, and feature requests are welcome.
-
 If you find a bug or have an idea for improvement, open an issue.
 
 ---
